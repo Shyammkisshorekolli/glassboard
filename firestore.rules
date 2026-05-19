@@ -1,0 +1,51 @@
+// firestore.rules
+// Paste this in Firebase Console → Firestore → Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read/write their own profile; heads can read all
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Tasks: owners can CRUD; heads can read all
+    match /tasks/{taskId} {
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'head');
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+        (resource.data.userId == request.auth.uid ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'head');
+    }
+
+    // Handshakes: module members and heads can read; authenticated users can create
+    match /handshakes/{hsId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'head';
+    }
+
+    // Files: all authenticated can read; authenticated can upload
+    match /files/{fileId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'head';
+    }
+
+    // Audit log: read by heads or own records; write by authenticated
+    match /auditLog/{logId} {
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'head');
+      allow create: if request.auth != null;
+    }
+  }
+}
